@@ -7,19 +7,47 @@
     <style>
         body {
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
             background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
         }
         #gameCanvas {
             border: 2px solid #000;
+        }
+        #controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .control-btn:active {
+            background-color: #45a049;
         }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas" width="300" height="300"></canvas>
+    <div id="controls">
+        <button class="control-btn" id="upBtn">↑</button>
+        <button class="control-btn" id="leftBtn">←</button>
+        <button class="control-btn" id="rightBtn">→</button>
+        <button class="control-btn" id="downBtn">↓</button>
+    </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -106,41 +134,47 @@
             ctx.fillText(`Score: ${score}`, 10, 30);
         }
 
-        document.addEventListener('keydown', changeDirection);
-
-        function changeDirection(event) {
-            const LEFT_KEY = 37;
-            const RIGHT_KEY = 39;
-            const UP_KEY = 38;
-            const DOWN_KEY = 40;
-
-            const keyPressed = event.keyCode;
-
+        function changeDirection(newDx, newDy) {
             const goingUp = dy === -1;
             const goingDown = dy === 1;
             const goingRight = dx === 1;
             const goingLeft = dx === -1;
 
-            if (keyPressed === LEFT_KEY && !goingRight) {
+            if (newDx === -1 && !goingRight) {
                 dx = -1;
                 dy = 0;
             }
 
-            if (keyPressed === UP_KEY && !goingDown) {
+            if (newDy === -1 && !goingDown) {
                 dx = 0;
                 dy = -1;
             }
 
-            if (keyPressed === RIGHT_KEY && !goingLeft) {
+            if (newDx === 1 && !goingLeft) {
                 dx = 1;
                 dy = 0;
             }
 
-            if (keyPressed === DOWN_KEY && !goingUp) {
+            if (newDy === 1 && !goingUp) {
                 dx = 0;
                 dy = 1;
             }
         }
+
+        document.addEventListener('keydown', (event) => {
+            switch (event.keyCode) {
+                case 37: changeDirection(-1, 0); break;  // Left
+                case 38: changeDirection(0, -1); break;  // Up
+                case 39: changeDirection(1, 0); break;   // Right
+                case 40: changeDirection(0, 1); break;   // Down
+            }
+        });
+
+        // Touch controls
+        document.getElementById('leftBtn').addEventListener('click', () => changeDirection(-1, 0));
+        document.getElementById('upBtn').addEventListener('click', () => changeDirection(0, -1));
+        document.getElementById('rightBtn').addEventListener('click', () => changeDirection(1, 0));
+        document.getElementById('downBtn').addEventListener('click', () => changeDirection(0, 1));
 
         setInterval(drawGame, 100);
     </script>
