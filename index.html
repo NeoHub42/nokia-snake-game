@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nokia Snake Game</title>
+    <title>Snake 2 Game</title>
     <style>
         body {
             display: flex;
@@ -18,35 +18,36 @@
         #gameCanvas {
             border: 2px solid #000;
         }
-        #controls {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
+        #joystickContainer {
+            position: relative;
+            width: 150px;
+            height: 150px;
             margin-top: 20px;
         }
-        .control-btn {
-            width: 60px;
-            height: 60px;
-            font-size: 24px;
-            border: none;
-            background-color: #4CAF50;
-            color: white;
-            border-radius: 5px;
-            cursor: pointer;
-            user-select: none;
+        #joystickBase {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
         }
-        .control-btn:active {
-            background-color: #45a049;
+        #joystickHandle {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background-color: #4CAF50;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas" width="300" height="300"></canvas>
-    <div id="controls">
-        <button class="control-btn" id="upBtn">↑</button>
-        <button class="control-btn" id="leftBtn">←</button>
-        <button class="control-btn" id="rightBtn">→</button>
-        <button class="control-btn" id="downBtn">↓</button>
+    <div id="joystickContainer">
+        <div id="joystickBase"></div>
+        <div id="joystickHandle"></div>
     </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -58,16 +59,19 @@
         let snake = [
             {x: 10, y: 10},
         ];
-        let food = {x: 15, y: 15};
+        let foods = [];
         let dx = 0;
         let dy = 0;
         let score = 0;
+        let speed = 100;
+        let obstacles = [];
 
         function drawGame() {
             clearCanvas();
             moveSnake();
             drawSnake();
-            drawFood();
+            drawFoods();
+            drawObstacles();
             checkCollision();
             drawScore();
         }
@@ -84,48 +88,106 @@
             });
         }
 
-        function drawFood() {
+        function drawFoods() {
             ctx.fillStyle = 'red';
-            ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 1, gridSize - 1);
+            foods.forEach(food => {
+                ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 1, gridSize - 1);
+            });
+        }
+
+        function drawObstacles() {
+            ctx.fillStyle = 'gray';
+            obstacles.forEach(obstacle => {
+                ctx.fillRect(obstacle.x * gridSize, obstacle.y * gridSize, gridSize - 1, gridSize - 1);
+            });
         }
 
         function moveSnake() {
             const head = {x: snake[0].x + dx, y: snake[0].y + dy};
             snake.unshift(head);
 
-            if (head.x === food.x && head.y === food.y) {
-                score++;
-                generateFood();
-            } else {
+            let foodEaten = false;
+            foods = foods.filter(food => {
+                if (head.x === food.x && head.y === food.y) {
+                    score++;
+                    foodEaten = true;
+                    speed = Math.max(50, speed - 2);
+                    return false;
+                }
+                return true;
+            });
+
+            if (!foodEaten) {
                 snake.pop();
+            }
+
+            if (foods.length < 3) {
+                generateFood();
             }
         }
 
         function generateFood() {
-            food.x = Math.floor(Math.random() * tileCount);
-            food.y = Math.floor(Math.random() * tileCount);
+            let food;
+            do {
+                food = {
+                    x: Math.floor(Math.random() * tileCount),
+                    y: Math.floor(Math.random() * tileCount)
+                };
+            } while (snake.some(segment => segment.x === food.x && segment.y === food.y) ||
+                     obstacles.some(obstacle => obstacle.x === food.x && obstacle.y === food.y) ||
+                     foods.some(existingFood => existingFood.x === food.x && existingFood.y === food.y));
+            foods.push(food);
+        }
+
+        function generateObstacles() {
+            for (let i = 0; i < 5; i++) {
+                let obstacle;
+                do {
+                    obstacle = {
+                        x: Math.floor(Math.random() * tileCount),
+                        y: Math.floor(Math.random() * tileCount)
+                    };
+                } while (snake.some(segment => segment.x === obstacle.x && segment.y === obstacle.y) ||
+                         foods.some(food => food.x === obstacle.x && food.y === obstacle.y) ||
+                         obstacles.some(existingObstacle => existingObstacle.x === obstacle.x && existingObstacle.y === obstacle.y));
+                obstacles.push(obstacle);
+            }
         }
 
         function checkCollision() {
             const head = snake[0];
 
-            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
-                resetGame();
-            }
+            // Wall collision
+            if (head.x < 0) head.x = tileCount - 1;
+            if (head.x >= tileCount) head.x = 0;
+            if (head.y < 0) head.y = tileCount - 1;
+            if (head.y >= tileCount) head.y = 0;
 
+            // Self collision
             for (let i = 1; i < snake.length; i++) {
                 if (head.x === snake[i].x && head.y === snake[i].y) {
                     resetGame();
                 }
             }
+
+            // Obstacle collision
+            if (obstacles.some(obstacle => head.x === obstacle.x && head.y === obstacle.y)) {
+                resetGame();
+            }
         }
 
         function resetGame() {
             snake = [{x: 10, y: 10}];
-            food = {x: 15, y: 15};
+            foods = [];
+            obstacles = [];
             dx = 0;
             dy = 0;
             score = 0;
+            speed = 100;
+            generateObstacles();
+            for (let i = 0; i < 3; i++) {
+                generateFood();
+            }
         }
 
         function drawScore() {
@@ -135,30 +197,8 @@
         }
 
         function changeDirection(newDx, newDy) {
-            const goingUp = dy === -1;
-            const goingDown = dy === 1;
-            const goingRight = dx === 1;
-            const goingLeft = dx === -1;
-
-            if (newDx === -1 && !goingRight) {
-                dx = -1;
-                dy = 0;
-            }
-
-            if (newDy === -1 && !goingDown) {
-                dx = 0;
-                dy = -1;
-            }
-
-            if (newDx === 1 && !goingLeft) {
-                dx = 1;
-                dy = 0;
-            }
-
-            if (newDy === 1 && !goingUp) {
-                dx = 0;
-                dy = 1;
-            }
+            dx = newDx;
+            dy = newDy;
         }
 
         document.addEventListener('keydown', (event) => {
@@ -170,13 +210,72 @@
             }
         });
 
-        // Touch controls
-        document.getElementById('leftBtn').addEventListener('click', () => changeDirection(-1, 0));
-        document.getElementById('upBtn').addEventListener('click', () => changeDirection(0, -1));
-        document.getElementById('rightBtn').addEventListener('click', () => changeDirection(1, 0));
-        document.getElementById('downBtn').addEventListener('click', () => changeDirection(0, 1));
+        // Analog stick controls
+        const joystickHandle = document.getElementById('joystickHandle');
+        const joystickBase = document.getElementById('joystickBase');
+        let isDragging = false;
 
-        setInterval(drawGame, 100);
+        joystickHandle.addEventListener('mousedown', startDragging);
+        joystickHandle.addEventListener('touchstart', startDragging);
+
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('touchmove', drag);
+
+        document.addEventListener('mouseup', stopDragging);
+        document.addEventListener('touchend', stopDragging);
+
+        function startDragging(e) {
+            isDragging = true;
+        }
+
+        function stopDragging(e) {
+            isDragging = false;
+            joystickHandle.style.transform = 'translate(-50%, -50%)';
+            dx = 0;
+            dy = 0;
+        }
+
+        function drag(e) {
+            if (isDragging) {
+                const baseRect = joystickBase.getBoundingClientRect();
+                const baseX = baseRect.left + baseRect.width / 2;
+                const baseY = baseRect.top + baseRect.height / 2;
+
+                let clientX, clientY;
+                if (e.type === 'touchmove') {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+
+                const deltaX = clientX - baseX;
+                const deltaY = clientY - baseY;
+                const distance = Math.min(baseRect.width / 2, Math.sqrt(deltaX * deltaX + deltaY * deltaY));
+                const angle = Math.atan2(deltaY, deltaX);
+
+                const moveX = distance * Math.cos(angle);
+                const moveY = distance * Math.sin(angle);
+
+                joystickHandle.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
+
+                // Update snake direction
+                if (Math.abs(moveX) > Math.abs(moveY)) {
+                    changeDirection(moveX > 0 ? 1 : -1, 0);
+                } else {
+                    changeDirection(0, moveY > 0 ? 1 : -1);
+                }
+            }
+        }
+
+        function gameLoop() {
+            drawGame();
+            setTimeout(gameLoop, speed);
+        }
+
+        resetGame();
+        gameLoop();
     </script>
 </body>
 </html>
